@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Панель поддержки</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --line: #e4e6ea; --text: #16181d; --muted: #6b7280;
+    --accent: #2f6fed; --accent-text: #ffffff; --bubble-in: #ffffff; --bubble-out: #e6efff;
+    --hover: #f0f2f5; --active: #e8effd; --danger: #d93838; --ok: #1f9d55; --warn: #e8a317;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --panel: #171a20; --line: #262a33; --text: #e7e9ee; --muted: #8b93a1;
+      --accent: #4c86ff; --accent-text: #ffffff; --bubble-in: #1e222a; --bubble-out: #1f3358;
+      --hover: #1d2129; --active: #1c2a44; --danger: #f06262; --ok: #3cc47c; --warn: #f0b43c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; background: none; }
+  .hidden { display: none !important; }
+
+  /* вход */
+  #login { height: 100%; display: grid; place-items: center; padding: 16px; }
+  #login form { width: 100%; max-width: 320px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px 24px; display: grid; gap: 12px; }
+  #login h1 { margin: 0 0 4px; font-size: 18px; }
+  .field { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); outline: none; }
+  .field:focus { border-color: var(--accent); }
+  .btn { padding: 9px 14px; border-radius: 10px; background: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn-ghost { padding: 7px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); }
+  .btn-ghost:hover { background: var(--hover); }
+  .error { color: var(--danger); min-height: 20px; font-size: 13px; }
+
+  /* раскладка */
+  #app { height: 100%; display: grid; grid-template-columns: 340px 1fr; }
+  aside { border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  .top { padding: 14px 16px 10px; display: flex; align-items: center; gap: 8px; }
+  .top b { font-size: 16px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .me { color: var(--muted); font-size: 13px; }
+  .link { color: var(--muted); font-size: 13px; }
+  .link:hover { color: var(--text); }
+  .tabs { display: flex; gap: 4px; padding: 0 12px 10px; }
+  .tab { flex: 1; padding: 7px; border-radius: 9px; color: var(--muted); font-weight: 600; }
+  .tab.on { background: var(--active); color: var(--accent); }
+  .search { margin: 0 12px 10px; width: calc(100% - 24px); }
+  #list { overflow-y: auto; flex: 1; border-top: 1px solid var(--line); }
+  .item { display: block; width: 100%; text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); }
+  .item:hover { background: var(--hover); }
+  .item.on { background: var(--active); }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .name { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .time { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 1px; }
+  .preview { color: var(--muted); font-size: 13px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex-shrink: 0; }
+  .empty { padding: 32px 16px; text-align: center; color: var(--muted); }
+  .wait { font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 99px; background: var(--hover); color: var(--muted); flex-shrink: 0; }
+  .wait.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+  .wait.late { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+  .mine { color: var(--accent); }
+
+  main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  #placeholder { flex: 1; display: grid; place-items: center; color: var(--muted); }
+  #chat { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .head { background: var(--panel); border-bottom: 1px solid var(--line); padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+  .head .who { flex: 1; min-width: 0; }
+  .head .name { display: block; }
+  .head a { color: var(--accent); text-decoration: none; }
+  #back { display: none; font-size: 20px; padding: 0 4px; }
+  .body { flex: 1; display: flex; min-height: 0; position: relative; }
+  .conv { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #client { width: 270px; flex-shrink: 0; border-left: 1px solid var(--line); background: var(--panel); overflow-y: auto; padding: 16px; }
+  #chat.hide-client #client { display: none; }
+  #client h3 { margin: 0 0 10px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  #client .facts { display: grid; gap: 6px; margin-bottom: 18px; }
+  #client .facts div { display: flex; justify-content: space-between; gap: 8px; }
+  #client .facts span:first-child { color: var(--muted); }
+  #client .bad { color: var(--danger); }
+  #client .past { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 6px; }
+  #client .past:hover { background: var(--hover); }
+  #assignNote { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 7px 10px; border-radius: 10px; background: color-mix(in srgb, var(--warn) 14%, transparent); font-size: 13px; }
+  #assignNote span { flex: 1; }
+  #assignNote button { color: var(--accent); font-weight: 600; }
+  #templates .group { padding: 8px 14px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: min(560px, 80%); padding: 8px 12px; border-radius: 14px; background: var(--bubble-in); border: 1px solid var(--line); white-space: pre-wrap; word-wrap: break-word; }
+  .msg.out { align-self: flex-end; background: var(--bubble-out); border-color: transparent; }
+  .msg .by { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 2px; }
+  .msg .at { font-size: 11px; color: var(--muted); text-align: right; margin-top: 3px; }
+  .msg img { display: block; max-width: 100%; max-height: 320px; border-radius: 9px; margin: 4px 0; cursor: zoom-in; }
+  .msg .file { display: inline-block; margin: 4px 0; color: var(--accent); }
+  .day { align-self: center; color: var(--muted); font-size: 12px; padding: 4px 0; }
+
+  .composer { background: var(--panel); border-top: 1px solid var(--line); padding: 10px 12px; position: relative; }
+  .composer .row { align-items: flex-end; }
+  #text { flex: 1; resize: none; max-height: 180px; min-height: 40px; }
+  .icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); flex-shrink: 0; }
+  .icon:hover { background: var(--hover); color: var(--text); }
+  .icon svg { width: 20px; height: 20px; }
+  #attachment { margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+  #attachment button { color: var(--danger); margin-left: 6px; }
+  #templates { position: absolute; bottom: calc(100% + 6px); left: 12px; width: min(380px, calc(100% - 24px)); max-height: 320px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+  #templates button { display: block; width: 100%; text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+  #templates button:hover { background: var(--hover); }
+  #templates small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .closed-note { text-align: center; color: var(--muted); padding: 14px; background: var(--panel); border-top: 1px solid var(--line); }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 10px; font-size: 13px; }
+
+  @media (max-width: 760px) {
+    #app { grid-template-columns: 1fr; }
+    #app.open aside { display: none; }
+    #app:not(.open) main { display: none; }
+    #back { display: block; }
+    .msg { max-width: 88%; }
+  }
+  /* на узком экране карточка клиента выезжает поверх переписки по кнопке */
+  @media (max-width: 1100px) {
+    #client { display: none; position: absolute; top: 0; right: 0; bottom: 0; box-shadow: -8px 0 24px rgba(0,0,0,.12); z-index: 2; }
+    #chat.show-client #client { display: block; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login" class="hidden">
+  <form id="loginForm">
+    <h1>Панель поддержки</h1>
+    <input class="field" id="loginName" placeholder="Логин" autocomplete="username" required>
+    <input class="field" id="loginPass" type="password" placeholder="Пароль" autocomplete="current-password" required>
+    <div class="error" id="loginError"></div>
+    <button class="btn" type="submit">Войти</button>
+    <button class="link app-only hidden" type="button" id="changeServer">Сменить сервер</button>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <aside>
+    <div class="top">
+      <b id="shop">Поддержка</b>
+      <span class="me" id="me"></span>
+      <button class="link" id="logout">Выйти</button>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-status="open">Открытые <span id="openCount"></span></button>
+      <button class="tab" data-status="closed">Закрытые</button>
+    </div>
+    <input class="field search" id="search" placeholder="Поиск: имя, @юзернейм, №">
+    <div id="list"></div>
+  </aside>
+
+  <main>
+    <div id="placeholder">Выберите обращение слева</div>
+    <div id="chat" class="hidden">
+      <div class="head">
+        <button id="back" title="К списку">←</button>
+        <div class="who">
+          <span class="name" id="chatName"></span>
+          <span class="meta" id="chatMeta"></span>
+        </div>
+        <button class="btn-ghost" id="assignBtn"></button>
+        <button class="btn-ghost" id="clientBtn" title="Карточка клиента">👤</button>
+        <button class="btn-ghost" id="closeTicket">✅ Закрыть</button>
+      </div>
+      <div class="body">
+      <div class="conv">
+      <div id="messages"></div>
+      <div class="composer" id="composer">
+        <div id="templates" class="hidden"></div>
+        <div id="assignNote" class="hidden"><span></span><button id="takeOver">Перехватить</button></div>
+        <div id="attachment" class="hidden"></div>
+        <div class="row">
+          <button class="icon" id="tplBtn" title="Шаблоны">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg>
+          </button>
+          <button class="icon" id="attachBtn" title="Прикрепить файл">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.3-2.4L15.5 7.6"/></svg>
+          </button>
+          <input type="file" id="fileInput" hidden>
+          <textarea class="field" id="text" rows="1" placeholder="Сообщение клиенту… (Enter — отправить, Shift+Enter — перенос)"></textarea>
+          <button class="btn" id="send">Отправить</button>
+        </div>
+      </div>
+      <div class="closed-note hidden" id="closedNote"></div>
+      </div>
+      <div id="client"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const state = { status: "open", tickets: [], current: null, lastMsgId: 0, waitingIds: null, file: null, shop: "Поддержка", me: "" };
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { credentials: "same-origin", ...options });
+  if (res.status === 401 && path !== "/api/login") { showLogin(); throw new Error("unauthorized"); }
+  const data = res.headers.get("content-type")?.includes("json") ? await res.json() : null;
+  if (!res.ok) throw new Error(data?.error || `Ошибка ${res.status}`);
+  return data;
+}
+
+function toast(text) {
+  const el = $("toast");
+  el.textContent = text;
+  el.classList.remove("hidden");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => el.classList.add("hidden"), 3500);
+}
+
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+// «2026-11-06 11:30» → «11:30» сегодня, иначе «06.11»
+function shortTime(value) {
+  if (!value) return "";
+  const [date, time] = value.split(" ");
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  if (date === today) return time;
+  const [, m, d] = date.split("-");
+  return `${d}.${m}`;
+}
+
+// «2026-11-06 11:30» → «06.11.2026»
+const fullDate = (value) => value ? value.split(" ")[0].split("-").reverse().join(".") : "—";
+
+// сколько клиент ждёт ответа: бейдж желтеет через 5 минут и краснеет через 15
+function waitBadge(minutes) {
+  const text = minutes < 1 ? "только что"
+    : minutes < 60 ? `${minutes} мин`
+    : minutes < 1440 ? `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`
+    : `${Math.floor(minutes / 1440)} дн`;
+  const badge = el("span", "wait" + (minutes >= 15 ? " late" : minutes >= 5 ? " warn" : ""), text);
+  badge.title = "Клиент ждёт ответа";
+  return badge;
+}
+
+const assigneeText = (name) => name === state.me ? "вы" : name;
+
+// --- вход ---
+
+function showLogin() {
+  $("app").classList.add("hidden");
+  $("login").classList.remove("hidden");
+  $("loginName").focus();
+}
+
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("loginError").textContent = "";
+  try {
+    await api("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login: $("loginName").value, password: $("loginPass").value }),
+    });
+    $("loginPass").value = "";
+    boot();
+  } catch (err) {
+    $("loginError").textContent = err.message;
+  }
+});
+
+$("logout").addEventListener("click", async () => {
+  await api("/api/logout", { method: "POST" });
+  location.reload();
+});
+
+// --- список тикетов ---
+
+document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t === tab));
+  state.status = tab.dataset.status;
+  loadList();
+}));
+$("search").addEventListener("input", renderList);
+
+async function loadList() {
+  const status = state.status;
+  const tickets = await api(`/api/tickets?status=${status}`);
+  if (status !== state.status) return;
+  state.tickets = tickets;
+  if (status === "open") checkNew(tickets);
+  renderList();
+}
+
+function renderList() {
+  const q = $("search").value.trim().toLowerCase().replace(/^[#№@]/, "");
+  const items = state.tickets.filter((t) => !q || [t.full_name, t.username, String(t.id), String(t.user_id)]
+    .some((v) => (v || "").toLowerCase().includes(q)));
+  const list = $("list");
+  list.replaceChildren();
+  if (!items.length) list.append(el("div", "empty", q ? "Ничего не найдено" : "Обращений нет"));
+  for (const t of items) {
+    const item = el("button", "item" + (state.current?.id === t.id ? " on" : ""));
+    const row = el("div", "row");
+    if (t.waiting) row.append(el("span", "dot"));
+    row.append(el("span", "name", t.full_name || "Без имени"));
+    row.append(t.waiting ? waitBadge(t.wait_minutes) : el("span", "time", shortTime(t.last_at || t.created_at)));
+    const meta = el("div", "meta", `№${t.id} · ${t.category || "—"}` + (t.rating ? ` · ${t.rating}⭐` : ""));
+    if (t.assignee) meta.append(" · ", el("span", t.assignee === state.me ? "mine" : null, "👤 " + assigneeText(t.assignee)));
+    const preview = t.last_text ? (t.last_sender === "admin" ? "Вы: " : "") + t.last_text : "";
+    item.append(row, meta, el("div", "preview", preview));
+    item.addEventListener("click", () => openTicket(t.id));
+    list.append(item);
+  }
+}
+
+// новые сообщения клиентов: звук, заголовок вкладки, уведомление
+function checkNew(tickets) {
+  const waiting = new Set(tickets.filter((t) => t.waiting).map((t) => `${t.id}:${t.last_at}`));
+  $("openCount").textContent = tickets.length ? `· ${tickets.length}` : "";
+  const count = tickets.filter((t) => t.waiting).length;
+  document.title = (count ? `(${count}) ` : "") + state.shop;
+  if (state.waitingIds) {
+    const fresh = tickets.filter((t) => t.waiting && !state.waitingIds.has(`${t.id}:${t.last_at}`));
+    if (fresh.length) notify(fresh[0]);
+  }
+  state.waitingIds = waiting;
+}
+
+function notify(t) {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.35);
+  } catch (e) {}
+  if (window.pywebview && !document.hasFocus()) { window.pywebview.api.flash(); return; }  // программа оператора
+  if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+    const n = new Notification(t.full_name || "Новое сообщение", { body: t.last_text || "", tag: `ticket-${t.id}` });
+    n.onclick = () => { window.focus(); openTicket(t.id); };
+  }
+}
+
+document.addEventListener("click", () => {
+  if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+}, { once: true });
+
+// --- переписка ---
+
+async function openTicket(id) {
+  state.lastMsgId = 0;
+  state.current = { id };
+  $("templates").classList.add("hidden");
+  clearFile();
+  $("text").value = "";
+  $("app").classList.add("open");
+  renderList();
+  await loadTicket(true);
+  $("text").focus();
+}
+
+$("back").addEventListener("click", () => {
+  $("app").classList.remove("open");
+  state.current = null;
+  $("chat").classList.add("hidden");
+  $("placeholder").classList.remove("hidden");
+  renderList();
+});
+
+async function loadTicket(force = false) {
+  const id = state.current?.id;
+  if (!id) return;
+  const data = await api(`/api/tickets/${id}`);
+  if (state.current?.id !== id) return;
+  const t = data.ticket;
+  state.current = t;
+  $("placeholder").classList.add("hidden");
+  $("chat").classList.remove("hidden");
+
+  $("chatName").textContent = t.full_name || "Без имени";
+  const meta = $("chatMeta");
+  meta.replaceChildren();
+  if (t.username) {
+    const a = el("a", null, "@" + t.username);
+    a.href = "https://t.me/" + t.username;
+    a.target = "_blank";
+    meta.append(a, " · ");
+  }
+  meta.append(`№${t.id} · ${t.category || "—"} · создан ${t.created_at}`);
+  if (t.assignee) meta.append(` · 👤 ${assigneeText(t.assignee)}`);
+
+  const closed = t.status === "closed";
+  const other = t.assignee && t.assignee !== state.me;
+  $("assignBtn").classList.toggle("hidden", closed || other);
+  $("assignBtn").textContent = t.assignee ? "Отпустить" : "🙋 Взять в работу";
+  $("assignNote").classList.toggle("hidden", closed || !other);
+  if (other) $("assignNote").querySelector("span").textContent = `Обращение ведёт ${t.assignee}`;
+  renderClient(t, data.client);
+  $("closeTicket").classList.toggle("hidden", closed);
+  $("composer").classList.toggle("hidden", closed);
+  $("closedNote").classList.toggle("hidden", !closed);
+  $("closedNote").textContent = closed
+    ? `Обращение закрыто ${t.closed_at || ""}` + (t.rating ? ` · оценка ${"⭐".repeat(t.rating)}` : "")
+    : "";
+
+  const last = data.messages.at(-1)?.id || 0;
+  if (force || last !== state.lastMsgId) renderMessages(data.messages);
+  state.lastMsgId = last;
+}
+
+function renderMessages(messages) {
+  const box = $("messages");
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  box.replaceChildren();
+  let day = "";
+  for (const m of messages) {
+    const date = m.created_at.split(" ")[0];
+    if (date !== day) {
+      day = date;
+      const [y, mo, d] = date.split("-");
+      box.append(el("div", "day", `${d}.${mo}.${y}`));
+    }
+    const out = m.sender === "admin";
+    const bubble = el("div", "msg" + (out ? " out" : ""));
+    if (out) bubble.append(el("div", "by", m.operator || "Поддержка"));
+    for (const f of m.files) {
+      if (f.type === "photo") {
+        const img = el("img");
+        img.src = f.url;
+        img.loading = "lazy";
+        img.addEventListener("click", () => window.open(f.url, "_blank"));
+        bubble.append(img);
+      } else {
+        const a = el("a", "file", "📎 " + (f.name || "Файл"));
+        a.href = f.url;
+        bubble.append(a);
+      }
+    }
+    // подписи вида «[фото]» не нужны, если вложение показано
+    const text = m.files.length ? m.text.replace(/^\[(фото|видео|голосовое|вложение|файл:[^\]]*)\]\s?/gm, "") : m.text;
+    if (text.trim()) bubble.append(document.createTextNode(text));
+    bubble.append(el("div", "at", m.created_at.split(" ")[1]));
+    box.append(bubble);
+  }
+  if (atBottom || !state.lastMsgId) box.scrollTop = box.scrollHeight;
+}
+
+// --- в работе и карточка клиента ---
+
+async function setAssign(take) {
+  try {
+    await api(`/api/tickets/${state.current.id}/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ take }),
+    });
+    await Promise.all([loadTicket(), loadList()]);
+  } catch (err) {
+    toast(err.message);
+  }
+}
+$("assignBtn").addEventListener("click", () => setAssign(!state.current.assignee));
+$("takeOver").addEventListener("click", () => {
+  if (confirm(`Забрать обращение у ${state.current.assignee}?`)) setAssign(true);
+});
+
+const wideScreen = matchMedia("(min-width: 1101px)");
+$("clientBtn").addEventListener("click", () => {
+  $("chat").classList.toggle(wideScreen.matches ? "hide-client" : "show-client");
+});
+
+function renderClient(t, c) {
+  const box = $("client");
+  box.replaceChildren(el("h3", null, "Клиент"));
+  const facts = el("div", "facts");
+  const fact = (label, value, cls) => {
+    const row = el("div");
+    row.append(el("span", null, label), el("span", cls, value));
+    facts.append(row);
+  };
+  fact("Telegram ID", String(t.user_id));
+  fact("Клиент с", fullDate(c.first_seen));
+  fact("Обращений", String(c.total));
+  fact("Средняя оценка", c.avg_rating ? `${c.avg_rating} ⭐` : "—");
+  if (c.low_ratings) fact("Низких оценок", `⚠️ ${c.low_ratings}`, "bad");
+  box.append(facts, el("h3", null, "Прошлые обращения"));
+  if (!c.history.length) box.append(el("div", "meta", "Это первое обращение"));
+  for (const h of c.history) {
+    const b = el("button", "past");
+    const row = el("div", "row");
+    row.append(el("span", "name", `${h.status === "open" ? "🟢" : "⚪"} №${h.id}`), el("span", "time", fullDate(h.created_at)));
+    b.append(row, el("div", "meta", (h.category || "—") + (h.rating ? ` · ${h.rating}⭐` : "")));
+    b.addEventListener("click", () => openTicket(h.id));
+    box.append(b);
+  }
+}
+
+// --- ответ ---
+
+const textArea = $("text");
+textArea.addEventListener("input", autosize);
+textArea.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+});
+textArea.addEventListener("paste", (e) => {
+  const file = [...(e.clipboardData?.files || [])][0];
+  if (file) { e.preventDefault(); setFile(file); }
+});
+function autosize() {
+  textArea.style.height = "auto";
+  textArea.style.height = Math.min(textArea.scrollHeight, 180) + "px";
+}
+
+$("attachBtn").addEventListener("click", () => $("fileInput").click());
+$("fileInput").addEventListener("change", (e) => { if (e.target.files[0]) setFile(e.target.files[0]); e.target.value = ""; });
+
+function setFile(file) {
+  state.file = file;
+  const box = $("attachment");
+  box.replaceChildren("📎 " + (file.name || "изображение"));
+  const remove = el("button", null, "✕");
+  remove.title = "Убрать";
+  remove.addEventListener("click", clearFile);
+  box.append(remove);
+  box.classList.remove("hidden");
+}
+function clearFile() {
+  state.file = null;
+  $("attachment").classList.add("hidden");
+}
+
+$("send").addEventListener("click", send);
+async function send() {
+  const id = state.current?.id;
+  const text = textArea.value.trim();
+  if (!id || (!text && !state.file)) return;
+  const form = new FormData();
+  form.append("text", text);
+  if (state.file) form.append("file", state.file, state.file.name || "image.png");
+  $("send").disabled = true;
+  try {
+    await api(`/api/tickets/${id}/reply`, { method: "POST", body: form });
+    textArea.value = "";
+    autosize();
+    clearFile();
+    await Promise.all([loadTicket(), loadList()]);
+    $("messages").scrollTop = $("messages").scrollHeight;
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    $("send").disabled = false;
+    textArea.focus();
+  }
+}
+
+$("tplBtn").addEventListener("click", async (e) => {
+  e.stopPropagation();
+  const box = $("templates");
+  if (!box.classList.contains("hidden")) { box.classList.add("hidden"); return; }
+  const templates = await api(`/api/tickets/${state.current.id}/templates`);
+  box.replaceChildren();
+  if (!templates.length) box.append(el("div", "empty", "Шаблонов нет — добавьте их в боте командой /templates"));
+  let group;
+  for (const tpl of templates) {
+    if (tpl.category !== group) {
+      group = tpl.category;
+      box.append(el("div", "group", group ? `По теме: ${group}` : "Общие"));
+    }
+    const b = el("button", null, tpl.title);
+    b.append(el("small", null, tpl.text));
+    b.addEventListener("click", () => {
+      textArea.value = tpl.text;
+      box.classList.add("hidden");
+      autosize();
+      textArea.focus();
+    });
+    box.append(b);
+  }
+  box.classList.remove("hidden");
+});
+document.addEventListener("click", (e) => {
+  if (!$("templates").contains(e.target)) $("templates").classList.add("hidden");
+});
+
+$("closeTicket").addEventListener("click", async () => {
+  if (!confirm("Закрыть обращение? Клиенту придёт просьба оценить поддержку.")) return;
+  try {
+    await api(`/api/tickets/${state.current.id}/close`, { method: "POST" });
+    toast("Обращение закрыто");
+    await Promise.all([loadTicket(true), loadList()]);
+  } catch (err) {
+    toast(err.message);
+  }
+});
+
+// в программе оператора (pywebview) — кнопка смены сервера
+const showAppOnly = () => document.querySelectorAll(".app-only").forEach((n) => n.classList.remove("hidden"));
+window.addEventListener("pywebviewready", showAppOnly);
+if (window.pywebview) showAppOnly();
+$("changeServer").addEventListener("click", () => window.pywebview.api.change_server());
+
+// --- запуск и обновление ---
+
+let timers = [];
+async function boot() {
+  try {
+    const me = await api("/api/me");
+    state.shop = me.shop;
+    state.me = me.name;
+    $("shop").textContent = me.shop;
+    $("me").textContent = me.name;
+  } catch (e) { return; }
+  $("login").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  await loadList();
+  timers.forEach(clearInterval);
+  const quiet = (fn) => () => fn().catch(() => {});
+  timers = [setInterval(quiet(loadList), 4000), setInterval(quiet(() => loadTicket()), 3000)];
+}
+
+boot();
+</script>
+</body>
+</html>
